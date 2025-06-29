@@ -1,0 +1,16 @@
+[package]
+name = "smoothsend"
+version = "1.0.0"
+
+[addresses]
+smoothsend = "0xe91b3ff1999a9704b2aa28f772ec40622492b786f31c1b7f2a99e006582c0c8f"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosStdlib]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-stdlib"
