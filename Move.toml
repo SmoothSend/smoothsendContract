@@ -1,9 +1,10 @@
 [package]
 name = "smoothsend"
 version = "1.0.0"
+upgrade_policy = "compatible"
 
 [addresses]
-smoothsend = "0xe91b3ff1999a9704b2aa28f772ec40622492b786f31c1b7f2a99e006582c0c8f"
+smoothsend = "0x82547f5454cbd6f92ee8715c229deea4dafca67fbf31ce817cf91c90f9c4fd82"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
