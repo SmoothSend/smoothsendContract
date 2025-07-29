@@ -4,14 +4,12 @@ version = "1.0.0"
 upgrade_policy = "compatible"
 
 [addresses]
-smoothsend = "0x82547f5454cbd6f92ee8715c229deea4dafca67fbf31ce817cf91c90f9c4fd82"
+smoothsend = "0x6d88ee2fde204e756874e13f5d5eddebd50725805c0a332ade87d1ef03f9148b"
+pyth = "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387"
+wormhole = "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
+deployer = "0xb31e712b26fd295357355f6845e77c888298636609e93bc9b05f0f604049f434"
 
-[dependencies.AptosFramework]
-git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "mainnet"
-subdir = "aptos-move/framework/aptos-framework"
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework", rev = "6f83bc6d02207298b2dee91133d75538789bf582" }
+Pyth = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "target_chains/aptos/contracts", rev = "main" }
 
-[dependencies.AptosStdlib]
-git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "mainnet"
-subdir = "aptos-move/framework/aptos-stdlib"
