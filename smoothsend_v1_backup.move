@@ -1,45 +1,33 @@
 module smoothsend::smoothsend {
-    use std::signer;
-    use std::string;
     use aptos_framework::coin;
+    use aptos_framework::signer;
     use aptos_std::table::{Self, Table};
+    use std::string::{String};
 
-    // === Error Codes ===
-    const E_COIN_NOT_SUPPORTED: u64 = 1;
-    const E_RELAYER_NOT_WHITELISTED: u64 = 2;
-    const E_INSUFFICIENT_BALANCE: u64 = 3;
-    const E_NOT_ADMIN: u64 = 4;
-    const E_AMOUNT_ZERO: u64 = 5;              // NEW: Zero amount protection
-    const E_SELF_TRANSFER: u64 = 6;            // NEW: Self-transfer prevention
-    const E_OVERFLOW: u64 = 7;                 // NEW: Integer overflow protection
-    const E_RELAYER_FEE_ZERO: u64 = 8;        // NEW: Zero relayer fee protection
-    const E_INVALID_ADDRESS: u64 = 9;         // NEW: Invalid address protection
+    // Error codes
+    const E_NOT_ADMIN: u64 = 1;
+    const E_COIN_NOT_SUPPORTED: u64 = 2;
+    const E_RELAYER_NOT_WHITELISTED: u64 = 3;
+    const E_INSUFFICIENT_BALANCE: u64 = 4;
 
-    // Global configuration
+    // Contract state
     struct Config has key {
         admin: address,
-        supported_coins: Table<string::String, bool>,
+        supported_coins: Table<String, bool>,
         whitelisted_relayers: Table<address, bool>,
     }
 
-    // Initialize the module (deployer becomes admin)
-    fun init_module(deployer: &signer) {
-        move_to(deployer, Config {
-            admin: signer::address_of(deployer),
+    // Initialize contract
+    public entry fun initialize(admin: &signer) {
+        let admin_addr = signer::address_of(admin);
+        move_to(admin, Config {
+            admin: admin_addr,
             supported_coins: table::new(),
             whitelisted_relayers: table::new(),
         });
     }
 
-    // Backward compatibility: Keep the initialize function for upgrades
-    public entry fun initialize(admin: &signer) {
-        // For upgrades, this function can be empty since init_module handles initialization
-        // This exists only to maintain backward compatibility
-        let _ = admin; // Suppress unused variable warning
-    }
-
-    // === SECURITY-ENHANCED MAIN FUNCTION ===
-    // Main gasless transfer function with comprehensive security checks
+    // Main gasless transfer function
     public entry fun send_with_fee<CoinType>(
         user: &signer,
         relayer_address: address,  // Pass relayer address to verify
@@ -48,22 +36,6 @@ module smoothsend::smoothsend {
         relayer_fee: u64
     ) acquires Config {
         let config = borrow_global<Config>(@smoothsend);
-        let user_addr = signer::address_of(user);
-        
-        // === SECURITY CHECK 1: Zero Amount Validation ===
-        assert!(amount > 0, E_AMOUNT_ZERO);
-        assert!(relayer_fee > 0, E_RELAYER_FEE_ZERO);
-        
-        // === SECURITY CHECK 2: Self-Transfer Prevention ===
-        assert!(user_addr != recipient, E_SELF_TRANSFER);
-        assert!(user_addr != relayer_address, E_SELF_TRANSFER);
-        assert!(recipient != relayer_address, E_SELF_TRANSFER);
-        
-        // === SECURITY CHECK 3: Integer Overflow Protection ===
-        // Check for overflow before addition using safe arithmetic
-        let max_u64 = 18446744073709551615u64; // 2^64 - 1
-        assert!(amount <= max_u64 - relayer_fee, E_OVERFLOW);
-        let total_needed = amount + relayer_fee;
         
         // Check if coin is supported (USDC/USDT only)
         let coin_name = coin::symbol<CoinType>();
@@ -80,17 +52,17 @@ module smoothsend::smoothsend {
             E_RELAYER_NOT_WHITELISTED
         );
         
-        // Check user has enough balance (now using overflow-safe total)
+        // Check user has enough balance
+        let user_addr = signer::address_of(user);
+        let total_needed = amount + relayer_fee;
         assert!(coin::balance<CoinType>(user_addr) >= total_needed, E_INSUFFICIENT_BALANCE);
         
-        // Execute atomic transfers (unchanged - already secure)
+        // Execute atomic transfers
         coin::transfer<CoinType>(user, recipient, amount);
         coin::transfer<CoinType>(user, relayer_address, relayer_fee);
     }
 
-    // === ENHANCED ADMIN FUNCTIONS WITH VALIDATION ===
-    
-    // Admin function: Add supported coin with validation
+    // Admin function: Add supported coin
     public entry fun add_supported_coin<CoinType>(admin: &signer) acquires Config {
         let config = borrow_global_mut<Config>(@smoothsend);
         assert!(signer::address_of(admin) == config.admin, E_NOT_ADMIN);
@@ -114,13 +86,10 @@ module smoothsend::smoothsend {
         };
     }
 
-    // Admin function: Add whitelisted relayer with validation
+    // Admin function: Add whitelisted relayer
     public entry fun add_relayer(admin: &signer, relayer: address) acquires Config {
         let config = borrow_global_mut<Config>(@smoothsend);
         assert!(signer::address_of(admin) == config.admin, E_NOT_ADMIN);
-        
-        // Prevent admin from accidentally adding zero address
-        assert!(relayer != @0x0, E_INVALID_ADDRESS);
         
         if (!table::contains(&config.whitelisted_relayers, relayer)) {
             table::add(&mut config.whitelisted_relayers, relayer, true);
@@ -139,8 +108,6 @@ module smoothsend::smoothsend {
         };
     }
 
-    // === VIEW FUNCTIONS (Unchanged - Already Secure) ===
-    
     // View function: Check if coin is supported
     #[view]
     public fun is_coin_supported<CoinType>(): bool acquires Config {
@@ -166,37 +133,10 @@ module smoothsend::smoothsend {
         }
     }
 
-    // === ENHANCED ADMIN TRANSFER WITH VALIDATION ===
-    
-    // Transfer admin (for security) with additional validation
+    // Transfer admin (for security)
     public entry fun transfer_admin(admin: &signer, new_admin: address) acquires Config {
         let config = borrow_global_mut<Config>(@smoothsend);
         assert!(signer::address_of(admin) == config.admin, E_NOT_ADMIN);
-        
-        // Prevent transferring to zero address or self
-        assert!(new_admin != @0x0, E_INVALID_ADDRESS);
-        assert!(new_admin != config.admin, E_SELF_TRANSFER);
-        
         config.admin = new_admin;
-    }
-
-    // === NEW UTILITY FUNCTIONS FOR ENHANCED SECURITY ===
-    
-    // View function: Get current admin (for transparency)
-    #[view]
-    public fun get_admin(): address acquires Config {
-        let config = borrow_global<Config>(@smoothsend);
-        config.admin
-    }
-    
-    // View function: Check maximum safe transfer amount (for UI)
-    #[view]
-    public fun get_max_safe_amount(relayer_fee: u64): u64 {
-        let max_u64 = 18446744073709551615u64;
-        if (relayer_fee >= max_u64) {
-            0
-        } else {
-            max_u64 - relayer_fee
-        }
     }
 }
